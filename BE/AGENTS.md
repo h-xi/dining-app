@@ -10,7 +10,10 @@ Django + Django REST Framework.
 ## Stack
 
 - Python 3.9, Django 4.2, Django REST Framework
-- Auth: `djangorestframework-simplejwt` (JWT, with token blacklist app enabled for logout/revocation)
+- Auth: Google Sign-In only — no passwords are ever stored (see below). `djangorestframework-simplejwt`
+  still issues our own access/refresh tokens after Google verification (token blacklist app enabled
+  for logout/revocation).
+- `google-auth` + `requests` to verify Google ID tokens server-side
 - `django-cors-headers` for CORS
 - `django-filter` as the default DRF filter backend
 - `django-environ` for `.env`-based settings
@@ -21,12 +24,31 @@ Django + Django REST Framework.
 ## Project layout
 
 - `config/` — Django project package: `settings.py`, `urls.py`, `wsgi.py`, `asgi.py`, `celery.py` (Celery app)
-- `core/` — first app: domain models, admin, and background tasks for the marketplace
+- `accounts/` — custom `User` model + Google Sign-In endpoint
+- `core/` — marketplace domain app: models, admin, and background tasks
 - `docker-compose.yml` — local `db` (Postgres, 5432) and `redis` (6379) services
 - `.env` / `.env.example` — environment config (`SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`,
-  `DATABASE_URL`, `CORS_ALLOWED_ORIGINS`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`)
+  `DATABASE_URL`, `CORS_ALLOWED_ORIGINS`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`,
+  `GOOGLE_OAUTH_CLIENT_ID`)
 - `.venv/` — virtualenv, not committed
 - `requirements.txt` — frozen dependencies
+
+## Auth (`accounts/`)
+
+- `accounts.User` (`AUTH_USER_MODEL`) extends `AbstractUser`, adding `google_sub` (Google's stable
+  `sub` claim, unique) and `avatar_url`. Passwords are never set — new users get
+  `set_unusable_password()` on creation.
+- `POST /api/auth/google/` (`accounts/views.py::GoogleLoginView`) — frontend authenticates with
+  Google directly (Google Sign-In SDK) and POSTs the resulting `id_token` here. We verify it
+  against Google's public keys via `google.oauth2.id_token.verify_oauth2_token`
+  (audience = `settings.GOOGLE_OAUTH_CLIENT_ID`), get-or-create the local `User` by `google_sub`,
+  and return our own `access`/`refresh` JWT pair (via simplejwt) plus basic profile info. All
+  other endpoints authenticate against *our* JWTs, not Google's, so nothing downstream needs to
+  know Google is involved.
+- `GOOGLE_OAUTH_CLIENT_ID` is currently a placeholder in `.env` — replace with the real OAuth 2.0
+  Web Client ID from Google Cloud Console (APIs & Services → Credentials) once the project exists.
+- `POST /api/auth/token/refresh/` / `POST /api/auth/token/blacklist/` — still handled by
+  simplejwt's stock views, for refreshing/revoking the tokens we issue.
 
 ## Domain models (`core/models.py`)
 
@@ -39,7 +61,7 @@ Django + Django REST Framework.
   (UUID), `status` (`pending_payment → confirmed → completed`, or `cancelled`/`no_show`),
   `amount_paid`, `stripe_payment_intent_id` (placeholder — payment integration not built yet)
 
-All registered in Django admin (`core/admin.py`).
+All registered in Django admin (`core/admin.py`, `accounts/admin.py`).
 
 ## Background tasks (`core/tasks.py`)
 
@@ -54,6 +76,9 @@ All registered in Django admin (`core/admin.py`).
 - `core/tests/conftest.py` holds shared fixtures (`diner`, `owner`, `restaurant`, `table`, `slot`,
   `reservation`), built with plain `Model.objects.create(...)` calls and composed via fixture
   dependencies — no `factory_boy`/`Faker`, by preference.
+- `accounts/tests/test_views.py` mocks `google_id_token.verify_oauth2_token` to exercise the
+  Google login flow (new user creation, repeat-login reuse, invalid token → 401) without calling
+  out to Google.
 - Run with `pytest` (from the venv). `--reuse-db` is on by default; pass `--create-db` to force a
   fresh test database after a migration change.
 
@@ -71,14 +96,6 @@ celery -A config worker -l info
 celery -A config beat -l info
 ```
 
-## Auth endpoints (already wired in `config/urls.py`)
-
-- `POST /api/auth/token/` — obtain access + refresh token
-- `POST /api/auth/token/refresh/` — refresh access token
-- `POST /api/auth/token/blacklist/` — revoke a refresh token
-
-App-specific routes live in `core/urls.py`, included under `/api/`.
-
 ## DRF defaults (`config/settings.py`)
 
 - `DEFAULT_AUTHENTICATION_CLASSES`: JWT only
@@ -88,6 +105,8 @@ App-specific routes live in `core/urls.py`, included under `/api/`.
 
 ## Status
 
-Domain models (Restaurant, Table, AvailabilitySlot, Reservation) and slot-expiry Celery task are
-in place and migrated. No serializers or API views built yet beyond JWT auth routes — payment
-integration (Stripe) is also not yet wired up.
+Domain models (Restaurant, Table, AvailabilitySlot, Reservation), slot-expiry Celery task, and
+Google Sign-In (custom User model, `/api/auth/google/`) are in place, migrated, and tested. No
+serializers/views for the domain models yet — payment integration (Stripe) also not yet wired up.
+A real `GOOGLE_OAUTH_CLIENT_ID` still needs to be created in Google Cloud Console and dropped
+into `.env`.

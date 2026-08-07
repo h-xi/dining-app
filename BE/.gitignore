@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 db.sqlite3
 .env
+.coverage
 staticfiles/
 media/
 .DS_Store

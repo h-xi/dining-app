@@ -39,8 +39,11 @@ INSTALLED_APPS = [
     'django_filters',
 
     # local
+    'accounts',
     'core',
 ]
+
+AUTH_USER_MODEL = 'accounts.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -151,6 +154,12 @@ SIMPLE_JWT = {
 # CORS
 
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=['http://localhost:3000'])
+
+
+# Google Sign-In
+# https://console.cloud.google.com/apis/credentials -> OAuth 2.0 Client ID (Web application)
+
+GOOGLE_OAUTH_CLIENT_ID = env('GOOGLE_OAUTH_CLIENT_ID', default='REPLACE_ME.apps.googleusercontent.com')
 
 
 # Celery

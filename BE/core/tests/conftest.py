@@ -11,12 +11,18 @@ User = get_user_model()
 
 @pytest.fixture
 def diner(db):
-    return User.objects.create_user(username='diner', email='diner@example.com', password='password123')
+    user = User.objects.create_user(username='diner', email='diner@example.com', google_sub='diner-sub')
+    user.set_unusable_password()
+    user.save(update_fields=['password'])
+    return user
 
 
 @pytest.fixture
 def owner(db):
-    return User.objects.create_user(username='owner', email='owner@example.com', password='password123')
+    user = User.objects.create_user(username='owner', email='owner@example.com', google_sub='owner-sub')
+    user.set_unusable_password()
+    user.save(update_fields=['password'])
+    return user
 
 
 @pytest.fixture

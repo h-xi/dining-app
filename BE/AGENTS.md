@@ -16,6 +16,7 @@ Django + Django REST Framework.
 - `django-environ` for `.env`-based settings
 - Postgres 16 (via Docker Compose) as the database
 - Celery + Redis (via Docker Compose) for background/periodic tasks
+- `pytest` + `pytest-django` for testing (plain pytest fixtures, not factory libraries — see below)
 
 ## Project layout
 
@@ -45,6 +46,16 @@ All registered in Django admin (`core/admin.py`).
 - `expire_availability_slots` — bulk-transitions any `AvailabilitySlot` still `open` whose
   `start_time` has passed to `expired`. Scheduled via `CELERY_BEAT_SCHEDULE` in `config/settings.py`
   to run every 60 seconds. Requires both a Celery worker and Celery beat running (see below).
+
+## Testing
+
+- `pytest.ini` points tests at `config.settings_test` (inherits `config/settings.py`, but runs
+  Celery tasks eagerly and uses the fast MD5 password hasher).
+- `core/tests/conftest.py` holds shared fixtures (`diner`, `owner`, `restaurant`, `table`, `slot`,
+  `reservation`), built with plain `Model.objects.create(...)` calls and composed via fixture
+  dependencies — no `factory_boy`/`Faker`, by preference.
+- Run with `pytest` (from the venv). `--reuse-db` is on by default; pass `--create-db` to force a
+  fresh test database after a migration change.
 
 ## Running locally
 

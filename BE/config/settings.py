@@ -156,12 +156,6 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=['http://localhost:3000'])
 
 
-# Google Sign-In
-# https://console.cloud.google.com/apis/credentials -> OAuth 2.0 Client ID (Web application)
-
-GOOGLE_OAUTH_CLIENT_ID = env('GOOGLE_OAUTH_CLIENT_ID', default='REPLACE_ME.apps.googleusercontent.com')
-
-
 # Celery
 
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://localhost:6379/0')

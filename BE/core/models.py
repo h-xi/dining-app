@@ -22,6 +22,9 @@ class Restaurant(models.Model):
     postal_code = models.CharField(max_length=20)
     timezone = models.CharField(max_length=64, default='UTC')
 
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+
     phone_number = models.CharField(max_length=32, blank=True)
     email = models.EmailField(blank=True)
 

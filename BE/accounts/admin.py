@@ -7,8 +7,5 @@ from .models import User
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('email', 'username', 'google_sub', 'is_staff')
-    search_fields = ('email', 'username', 'google_sub')
-    fieldsets = BaseUserAdmin.fieldsets + (
-        ('Google sign-in', {'fields': ('google_sub', 'avatar_url')}),
-    )
+    list_display = ('email', 'username', 'is_staff')
+    search_fields = ('email', 'username')
